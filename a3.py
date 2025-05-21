@@ -1,15 +1,15 @@
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk, filedialog, simpledialog
 from typing import Text
-from ds_messenger import *
-from ds_protocol import *
+from ds_messenger import DirectMessenger
 
 
 class Body(tk.Frame):
     def __init__(self, root, recipient_selected_callback=None):
+    # Initializes the Body frame, sets up contacts list, and draws UI elements.
         tk.Frame.__init__(self, root)
         self.root = root
-        self._contacts = [] #changed this from type annotation, to empty list
+        self._contacts = [str]
         self._select_callback = recipient_selected_callback
         # After all initialization is complete,
         # call the _draw method to pack the widgets
@@ -17,35 +17,45 @@ class Body(tk.Frame):
         self._draw()
 
     def node_select(self, event):
-        index = int(self.posts_tree.selection()[0])
-        entry = self._contacts[index]
-        if self._select_callback is not None:
-            self._select_callback(entry)
+    # Called when a contact is selected; notifies the callback with selected contact.
+            index = int(self.posts_tree.selection()[0])
+            entry = self._contacts[index]
+            if self._select_callback is not None:
+                self._select_callback(entry)
 
     def insert_contact(self, contact: str):
+    # Adds a new contact to the contact list and GUI tree view.
         self._contacts.append(contact)
         id = len(self._contacts) - 1
         self._insert_contact_tree(id, contact)
 
     def _insert_contact_tree(self, id, contact: str):
+    # Inserts contact into the tree widget (truncate if name is long).
+
         if len(contact) > 25:
             entry = contact[:24] + "..."
         id = self.posts_tree.insert('', id, id, text=contact)
 
     def insert_user_message(self, message:str):
+    # Adds the user’s own message to the top of the display, right-aligned.
         self.entry_editor.insert(1.0, message + '\n', 'entry-right')
 
     def insert_contact_message(self, message:str):
+    # Adds a received message to the top of the display, left-aligned.
         self.entry_editor.insert(1.0, message + '\n', 'entry-left')
 
     def get_text_entry(self) -> str:
+    # Retrieves the current message typed by the user.
         return self.message_editor.get('1.0', 'end').rstrip()
 
     def set_text_entry(self, text:str):
+    # Replaces the current text in the input area with the provided text.
+
         self.message_editor.delete(1.0, tk.END)
         self.message_editor.insert(1.0, text)
 
     def _draw(self):
+    # Constructs and arranges the UI components inside the Body frame.
         posts_frame = tk.Frame(master=self, width=250)
         posts_frame.pack(fill=tk.BOTH, side=tk.LEFT)
 
@@ -84,29 +94,37 @@ class Body(tk.Frame):
 
 
 class Footer(tk.Frame):
-    def __init__(self, root, send_callback=None):
+# Initializes Footer frame and sets up the send callback.
+    def __init__(self, root, send_callback=None, add_user_callback = None):
         tk.Frame.__init__(self, root)
         self.root = root
         self._send_callback = send_callback
+        self._add_user_callback = add_user_callback
         self._draw()
 
     def send_click(self):
+    # Triggered when the Send button is clicked.
         if self._send_callback is not None:
             self._send_callback()
+    
+    def add_user_click(self):
+        if self._add_user_callback is not None:
+            self._add_user_callback()
 
     def _draw(self):
+    # Creates and places the Send button and status label. #also added add_user button
         save_button = tk.Button(master=self, text="Send", width=5, height = 2, command = self.send_click)
         # You must implement this.
         # Here you must configure the button to bind its click to
         # the send_click() function.
         save_button.pack(fill=tk.BOTH, side=tk.RIGHT, padx=5, pady=5)
 
-        # probably have to do the same for add_user_button
-        add_user_button = tk.Button(master = self, text = "Add User", width = 5)
-        add_user_button.pack(fill = tk.BOTH, side = tk.LEFT, padx=(125, 5), pady = 5)
+        add_user_button = tk.Button(master = self, text = "Add User", command = self.add_user_click) 
+        add_user_button.pack(fill = tk.BOTH, side = tk.LEFT, padx=(125, 5), pady = 5) #what should this button do?
 
 
 class NewContactDialog(tk.simpledialog.Dialog):
+# Dialog to collect server, username, and password from the user.
     def __init__(self, root, title=None, user=None, pwd=None, server=None):
         self.root = root
         self.server = server
@@ -115,6 +133,7 @@ class NewContactDialog(tk.simpledialog.Dialog):
         super().__init__(root, title)
 
     def body(self, frame):
+    # Creates input fields for server address and username (and TODO for password).
         self.server_label = tk.Label(frame, width=30, text="DS Server Address")
         self.server_label.pack()
         self.server_entry = tk.Entry(frame, width=30)
@@ -127,14 +146,6 @@ class NewContactDialog(tk.simpledialog.Dialog):
         self.username_entry.insert(tk.END, self.user)
         self.username_entry.pack()
 
-        self.password_label = tk.Label(frame, width = 30, text = "Password")
-        self.password_label.pack()
-
-        self.password_entry = tk.Entry(frame, width = 30)
-        self.password_entry.insert(tk.END, self.pwd)
-        self.password_entry['show'] = '*'
-        self.username_entry.pack()
-
         # You need to implement also the region for the user to enter
         # the Password. The code is similar to the Username you see above
         # but you will want to add self.password_entry['show'] = '*'
@@ -144,24 +155,27 @@ class NewContactDialog(tk.simpledialog.Dialog):
 
 
     def apply(self):
+    # Retrieves the user's inputs when they click OK.
         self.user = self.username_entry.get()
         self.pwd = self.password_entry.get()
         self.server = self.server_entry.get()
 
 
 class MainApp(tk.Frame):
+# Sets up the main app logic, contact list, and GUI components.
+
     def __init__(self, root):
         tk.Frame.__init__(self, root)
         self.root = root
+        self.messages_by_contact = {}
         self.username = ''
         self.password = ''
-        self.server = ''
+        self.server = '127.0.0.1'
         self.recipient = ''
-        self.direct_messenger = DirectMessenger(self, self.server, 3001, self.username, self.password)
         # You must implement this! You must configure and
         # instantiate your DirectMessenger instance after this line.
         #self.direct_messenger = ... continue!
-
+        #self.dm = DirectMessenger(self.server, self.username, self.password)
         # After all initialization is complete,
         # call the _draw method to pack the widgets
         # into the root frame
@@ -169,20 +183,51 @@ class MainApp(tk.Frame):
         self.body.insert_contact("studentexw23") # adding one example student.
 
     def send_message(self):
-        # You must implement this!
-        pass
+    # Called when the user hits send
+    # You must implement this!
+        message = self.body.get_text_entry()
+        recipient = self.recipient
+
+        if not recipient:
+            print("Error: No recipient selected.")
+            return
+
+        if not message.strip():
+            return
+        self.body.insert_user_message(f"You: {message}")
+        self.body.set_text_entry("")
+
+        # Store the sent message locally
+        if recipient not in self.messages_by_contact:
+            self.messages_by_contact[recipient] = []
+        self.messages_by_contact[recipient].append(f"You: {message}")
+
+        try:
+            response = self.dm.send(recipient, message)
+            print("Message sent:", response)
+        except Exception as e:
+            print(f"Send failed: {e}")
 
     def add_contact(self):
+    # Prompts user to add a new contact (needs implementation).
         # You must implement this!
         # Hint: check how to use tk.simpledialog.askstring to retrieve
         # the name of the new contact, and then use one of the body
         # methods to add the contact to your contact list
-        pass
+        contact = simpledialog.askstring("Add Contact", "Please enter the new contact name:")
+        if contact:
+            self.body.insert_contact(contact)
 
     def recipient_selected(self, recipient):
+    # Stores the selected recipient from the contact list.
         self.recipient = recipient
+        self.body.entry_editor.delete('1.0', tk.END)
+        if recipient in self.messages_by_contact:
+            for msg in self.messages_by_contact[recipient]:
+                self.body.insert_contact_message(msg)
 
     def configure_server(self):
+    # Opens the configuration dialog to set server, username, and password.
         ud = NewContactDialog(self.root, "Configure Account",
                               self.username, self.password, self.server)
         self.username = ud.user
@@ -191,16 +236,36 @@ class MainApp(tk.Frame):
         # You must implement this!
         # You must configure and instantiate your
         # DirectMessenger instance after this line.
+        if self.username and self.password and self.server:
+            self.dm  = DirectMessenger(dsuserver = self.server, username = self.username, password = self.password)
 
     def publish(self, message:str):
+    # Publishes a message to the server (to be implemented).
         # You must implement this!
         pass
 
     def check_new(self):
+        if self.dm:
+            try:
+                new_messages = self.dm.retrieve_new()
+                for msg in new_messages:
+                    sender = msg['from']
+                    message = msg['message']
+                    if sender not in self.messages_by_contact:
+                        self.messages_by_contact[sender] = []
+                        self.body.insert_contact(sender)
+                    self.messages_by_contact[sender].append(message)
+                    if self.recipient == sender:
+                        self.body.insert_contact_message(message, sender)
+            except Exception as e:
+                print(f"Check new errors: {e}")
+    # Checks for new incoming messages (to be implemented).
         # You must implement this!
-        pass
 
     def _draw(self):
+    # Builds the full GUI layout including menu, Body, and Footer.
+
+
         # Build a menu and add it to the root frame.
         menu_bar = tk.Menu(self.root)
         self.root['menu'] = menu_bar
@@ -223,11 +288,12 @@ class MainApp(tk.Frame):
         self.body = Body(self.root,
                          recipient_selected_callback=self.recipient_selected)
         self.body.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
-        self.footer = Footer(self.root, send_callback=self.send_message)
+        self.footer = Footer(self.root, send_callback=self.send_message, add_user_callback = self.add_contact)
         self.footer.pack(fill=tk.BOTH, side=tk.BOTTOM)
 
 
 if __name__ == "__main__":
+# Starts the application window and initializes MainApp.
     # All Tkinter programs start with a root window. We will name ours 'main'.
     main = tk.Tk()
 

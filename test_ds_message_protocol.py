@@ -21,8 +21,6 @@ class TestProtocol(unittest.TestCase):
 
     def test_extract_json_raise_exception(self):
         bad_json = '{"name": "John", "age":30,}'
-        print("calling extract json")
-        
         output = extract_json(bad_json)
         assert output.token == None and output.message == None and output.messages == [] and output.type == None
 

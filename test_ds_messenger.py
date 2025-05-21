@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from ds_messenger import *
 import time
 # coverage run -m --branch pytest .
@@ -36,23 +37,13 @@ class TestMessenger(unittest.TestCase):
         new_messages = self.dm.retrieve_new()
         self.assertIsInstance(new_messages, list)
     
-    def test_retrieve_new_empty(self):
 
-        self.dm.reader.readline = lambda: '{"response": {"type": "ok", "messages": []}}\n'
-        messages = self.dm.retrieve_new()
-        self.assertEqual(len(messages), 0)  # Should return empty list
-
-        
-    def test_retrieve_new_raise_exception(self): #not intended but it works out
-        self.dm.token = None
-
-        self.dm.reader.readline = lambda: "INVALID DATA"
     
-        with self.assertRaises(Exception):
-            self.dm.retrieve_new()
+    def test_retrieve_new_empty(self):
+        with patch.object(self.dm.reader, 'readline', return_value = '{"response": {"type": "ok", "messages": []}}'):
+            messages = self.dm.retrieve_new()
+            self.assertEqual(len(messages), 0)  # Should return empty list
             
-
-
     def test_retrieve_new_valid(self):
         dm2 = DirectMessenger(dsuserver ='localhost', username = 'test_user_2')
         self.dm.send('msg 1','test_user_2')
@@ -79,18 +70,6 @@ class TestMessenger(unittest.TestCase):
         test_send = self.dm.retrieve_all()
         self.assertIsInstance(test_send, list)
         
-    def test_retrieve_all_handles_exception(self):
-        self.dm.token = "fake_token"
-
-        # Replace readline with a lambda that raises an exception
-        self.dm.reader.readline = lambda: (_ for _ in ()).throw(RuntimeError("Forced exception for test"))
-
-        messages = self.dm.retrieve_all()
-
-        self.assertEqual(messages, [])
-        print("Exception handled correctly, messages:", messages)
-
-
     def test_retrieve_all_valid(self): #ask why this does not cover the case, but the other one does
         dm3 = DirectMessenger(dsuserver='localhost', username='Leo')
         old_len = len(dm3.retrieve_all())

@@ -92,8 +92,8 @@ class Notebook:
         self.password = password 
         self.bio = bio 
         self._diaries = []
-        self.messages = []
-        self.contact_list = []
+        self.conversations = {}
+        #get messages for each user, seperately, use a dictionary with key's [contacts], values are list of messages. 
     
 
     def add_diary(self, diary: Diary) -> None:
@@ -142,16 +142,8 @@ class Notebook:
 
         if p.exists() and p.suffix == '.json':
             try:
-                data_to_save = self.__dict__.copy()
-
-                if hasattr(self, 'messages'):
-                    data_to_save['messages'] = [msg.__dict__ for msg in self.messages]
-
-                if hasattr(self, 'recipients'):
-                    data_to_save['recipients'] = self.recipients
-
                 with open(p, 'w') as f:
-                    json.dump(data_to_save, f, indent = 4)
+                    json.dump(self.__dict__, f, indent = 4)
 
             except Exception as ex:
                 raise NotebookFileError("Error while attempting to process the notebook file.", ex)
@@ -175,38 +167,32 @@ class Notebook:
 
         if p.exists() and p.suffix == '.json':
             try:
-                f = open(p, 'r')
-                obj = json.load(f)
-                self.username = obj['username']
-                self.password = obj['password']
-                self.bio = obj['bio']
-                for diary_obj in obj['_diaries']:
-                    diary = Diary(diary_obj['entry'], diary_obj['timestamp'])
-                    self._diaries.append(diary)
+                with open(p, 'r') as f:
+                    obj = json.load(f)
+                    self.username = obj['username']
+                    self.password = obj['password']
+                    self.bio = obj['bio']
+                    for diary_obj in obj['_diaries']:
+                        diary = Diary(diary_obj['entry'], diary_obj['timestamp'])
+                        self._diaries.append(diary)
+                    # TODO: Iterates over DirectMessage Dictionary, have methods that retrieve conversation with specific user
+                    self.contacts = obj.get('contact', [])
+                    self.messages = obj.get('messages', [])
 
-                for msg_obj in obj.get('messages', []):
-                    dm = DirectMessage(
-                        sender = msg_obj.get('sender'),
-                        recipient = msg_obj.get('recipient'),
-                        message = msg_obj.get('message'),
-                        timestamp = msg_obj.get('timestmap')
-                    )
-                    self.messages.append(dm)
-                self.contact_list = obj.get('recipients', [])
-                f.close()
             except Exception as ex:
                 raise IncorrectNotebookError(ex)
         else:
             raise NotebookFileError()
         
     def add_message(self, message: DirectMessage):
-        pass
+        self.messages.append(message)
             
     def get_all_messages(self):
         return self.messages
     
-    def add_contact(self, contact: str):
-        self.contact_list.add(contact)
+    def add_contact(self, contact: str): #do i need to avoid duplicates, should i just use set()
+        if contact not in self.contacts:
+            self.contacts.add(contact)
     
     def get_all_contacts(self):
-        return list(self.contact_list)
+        return self.contacts
