@@ -1,0 +1,111 @@
+import unittest
+from ds_messenger import *
+import time
+# coverage run -m --branch pytest .
+# coverage report -m
+
+#run auth_request again with different token
+class TestMessenger(unittest.TestCase):
+    def setUp(self):
+        self.dm = DirectMessenger(dsuserver = 'localhost', username = 'testuser', password = 'testpass')
+    
+    def test_invalid_user(self):
+        with self.assertRaises(Exception):
+            self.dm_invalid = DirectMessenger(dsuserver = 'localhost', username = 'testuser', password = 'testpass2')
+
+    def test_send(self):
+        test_send = self.dm.send('test123','test_username')
+        self.assertTrue(test_send)
+
+    def test_send_not_token(self):
+        self.dm.token = None
+        test_send = self.dm.send('test_message', 'test_username')
+        self.assertFalse(test_send)
+
+    def test_send_error(self):
+        self.dm.reader.readline = lambda: '{"response": {"type": "error", "message": "fail"}}\n'
+        test_send = self.dm.send('test123', 'test_username')
+        self.assertFalse(test_send)
+  
+    def test_recieve_new_not_token(self): 
+        self.dm.token = None
+        test_send = self.dm.retrieve_new()
+        self.assertIsInstance(test_send, list)
+
+    def test_retrieve_new_returns_list(self):
+        new_messages = self.dm.retrieve_new()
+        self.assertIsInstance(new_messages, list)
+    
+    def test_retrieve_new_empty(self):
+
+        self.dm.reader.readline = lambda: '{"response": {"type": "ok", "messages": []}}\n'
+        messages = self.dm.retrieve_new()
+        self.assertEqual(len(messages), 0)  # Should return empty list
+
+        
+    def test_retrieve_new_raise_exception(self): #not intended but it works out
+        self.dm.token = None
+
+        self.dm.reader.readline = lambda: "INVALID DATA"
+    
+        with self.assertRaises(Exception):
+            self.dm.retrieve_new()
+            
+
+
+    def test_retrieve_new_valid(self):
+        dm2 = DirectMessenger(dsuserver ='localhost', username = 'test_user_2')
+        self.dm.send('msg 1','test_user_2')
+        msgs = dm2.retrieve_new()
+        self.assertEqual(len(msgs), 1)
+        self.assertEqual(msgs[0].message, "msg 1")
+
+        self.dm.send('msg 2','test_user_2')
+        msgs = dm2.retrieve_new()
+        self.assertEqual(len(msgs), 1)
+        self.assertEqual(msgs[0].message, "msg 2")
+        #connect to server first, send the message, retrieve new
+        # if not passing, assert if it has instance of direct message
+
+    def test_retrieve_all(self): #in the setup, send a message to an imaginary server, in the test cases, you see how would fetch all work. #
+        #in on test case, you fetch unread from the other party, you can take two direct messengers, one from alice to bob, and fetch unread from bob's side. 
+        #the recieved message from bob is the one that alice sent
+
+        all_messages = self.dm.retrieve_all()
+        self.assertIsInstance(all_messages, list)
+
+    def test_recieve_all_not_token(self):
+        self.dm.token = None
+        test_send = self.dm.retrieve_all()
+        self.assertIsInstance(test_send, list)
+        
+    def test_retrieve_all_handles_exception(self):
+        self.dm.token = "fake_token"
+
+        # Replace readline with a lambda that raises an exception
+        self.dm.reader.readline = lambda: (_ for _ in ()).throw(RuntimeError("Forced exception for test"))
+
+        messages = self.dm.retrieve_all()
+
+        self.assertEqual(messages, [])
+        print("Exception handled correctly, messages:", messages)
+
+
+    def test_retrieve_all_valid(self): #ask why this does not cover the case, but the other one does
+        dm3 = DirectMessenger(dsuserver='localhost', username='Leo')
+        old_len = len(dm3.retrieve_all())
+
+        self.dm.send('Hi', 'Leo')
+
+        msgs = dm3.retrieve_all()
+        self.assertGreater(len(msgs), old_len)
+        self.assertEqual(msgs[old_len].message, "Hi")
+                         
+    def test_retrieve_all_empty(self):
+        self.dm.reader.readline = lambda: '{"response": {"type": "ok", "messages": []}}\n' #this just overrides readline
+        messages = self.dm.retrieve_all()
+        self.assertEqual(len(messages), 0)
+
+if __name__ == '__main__':
+    unittest.main()
+    
