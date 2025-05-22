@@ -1,0 +1,38 @@
+{
+    "username": "alice",
+    "password": "1234",
+    "host": "localhost",
+    "port": 8000,
+    "_diaries": [],
+    "conversations": {
+        "bob": [
+            {
+                "message": "Hi Bob!",
+                "timestamp": 1747939771.1065931,
+                "recipient": "bob"
+            },
+            {
+                "message": "Hey Alice!",
+                "timestamp": 1747939771.1065972,
+                "from": "bob"
+            },
+            {
+                "message": "How is your day Bob!",
+                "timestamp": 1747939771.1065989,
+                "recipient": "bob"
+            }
+        ],
+        "connor": [
+            {
+                "message": "Hi connor",
+                "timestamp": 1747939771.106601,
+                "recipient": "connor"
+            },
+            {
+                "message": "Hey Alice!",
+                "timestamp": 1747939771.106602,
+                "from": "connor"
+            }
+        ]
+    }
+}

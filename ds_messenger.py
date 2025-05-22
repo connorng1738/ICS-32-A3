@@ -11,6 +11,7 @@ import socket
 import time
 from ds_protocol import *
 
+
 class DirectMessage:
   def __init__(self, recipient = None, message = None, sender = None, timestamp = None):
     self.recipient = recipient
@@ -72,24 +73,21 @@ class DirectMessenger:
       return []
     
     new_fetch_request = fetch_request(self.token, "unread")
-    # TODO: make the next 4 lines a method and use it everywhere
-    self.writer.write(new_fetch_request + '\r\n')
-    self.writer.flush()
-    response = self.reader.readline()
-    parsed = extract_json(response)
+    parsed = self.parse_message(new_fetch_request)
     
     messages = []
 
     if parsed.type == 'ok' and parsed.messages:
       print('line 89')
-      for msg in parsed.messages:
-        print(f'msg in parsed: {msg}') #do i have to worry about the output being incorrect like this
+      for msg in parsed.messages: 
         dm = DirectMessage(
           sender = msg.get('from', None),
           message = msg.get('message', None),
           timestamp = msg.get('timestamp',None)
           )
         messages.append(dm)
+    #elif parsed.type == 'error': 
+      #pass# incldue condition for this
     return messages
           
 
@@ -99,15 +97,12 @@ class DirectMessenger:
     
 
     all_fetch_request = fetch_request(self.token, "all")
-    self.writer.write(all_fetch_request + '\r\n')
-    self.writer.flush()
-    response = self.reader.readline()
-    parsed = extract_json(response)
-
+    parsed = self.parse_message(all_fetch_request)
     messages = []
 
     if parsed.type == 'ok' and parsed.messages:
       for msg in parsed.messages:
+        print('line 89')
         dm = DirectMessage(
             sender = msg.get('from',None),
             recipient = self.username,
@@ -120,9 +115,12 @@ class DirectMessenger:
 
   def parse_message(self, fetch_request) -> DSPResponse:
     self.writer.write(fetch_request + '\r\n')
+    
     self.writer.flush()
     response = self.reader.readline()
     parsed = extract_json(response)
     return parsed
+
+
 
       

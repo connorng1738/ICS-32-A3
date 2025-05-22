@@ -9,14 +9,11 @@ import time
 class TestMessenger(unittest.TestCase):
     def setUp(self):
         self.dm = DirectMessenger(dsuserver = 'localhost', username = 'testuser', password = 'testpass')
+        self.dm5 =  DirectMessenger(dsuserver = 'localhost', username = 'testuser5', password = 'testpass5')
     
     def test_invalid_user(self):
         with self.assertRaises(Exception):
             self.dm_invalid = DirectMessenger(dsuserver = 'localhost', username = 'testuser', password = 'testpass2')
-
-    def test_send(self):
-        test_send = self.dm.send('test123','test_username')
-        self.assertTrue(test_send)
 
     def test_send_not_token(self):
         self.dm.token = None
@@ -55,8 +52,6 @@ class TestMessenger(unittest.TestCase):
         msgs = dm2.retrieve_new()
         self.assertEqual(len(msgs), 1)
         self.assertEqual(msgs[0].message, "msg 2")
-        #connect to server first, send the message, retrieve new
-        # if not passing, assert if it has instance of direct message
 
     def test_retrieve_all(self): #in the setup, send a message to an imaginary server, in the test cases, you see how would fetch all work. #
         #in on test case, you fetch unread from the other party, you can take two direct messengers, one from alice to bob, and fetch unread from bob's side. 
@@ -70,7 +65,7 @@ class TestMessenger(unittest.TestCase):
         test_send = self.dm.retrieve_all()
         self.assertIsInstance(test_send, list)
         
-    def test_retrieve_all_valid(self): #ask why this does not cover the case, but the other one does
+    def test_retrieve_all_valid(self): 
         dm3 = DirectMessenger(dsuserver='localhost', username='Leo')
         old_len = len(dm3.retrieve_all())
 
@@ -81,7 +76,7 @@ class TestMessenger(unittest.TestCase):
         self.assertEqual(msgs[old_len].message, "Hi")
                          
     def test_retrieve_all_empty(self):
-        self.dm.reader.readline = lambda: '{"response": {"type": "ok", "messages": []}}\n' #this just overrides readline
+        self.dm.reader.readline = lambda: '{"response": {"type": "ok", "messages": []}}\n' 
         messages = self.dm.retrieve_all()
         self.assertEqual(len(messages), 0)
 

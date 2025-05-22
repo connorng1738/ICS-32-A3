@@ -14,7 +14,6 @@
 
 import json, time
 from pathlib import Path
-from ds_messenger import DirectMessage
 
 
 class NotebookFileError(Exception):
@@ -75,25 +74,70 @@ class Diary(dict):
     """ 
     entry = property(get_entry, set_entry)
     timestamp = property(get_time, set_time)
+
+class DirectMessage(Diary):
+    def __init__(self, entry, sender, recipient, timestamp = 0):
+        super().__init__(entry, timestamp)
+        self.sender = sender
+        self.recipient = recipient
+        dict.__setitem__(self, 'sender', sender)
+        if recipient:
+            dict.__setitem__(self, 'recipient', recipient)
     
+    def to_dict(self):
+        base = {
+            "message": self.entry,
+            "timestamp": self.timestamp,
+        }
+        if self.recipient:
+            base['recipient'] = self.recipient
+        else:
+            base['from'] = self.sender
+        return base
+
+    @classmethod
+    def from_dict(cls, d):
+        entry = d['message']
+        timestamp = d['timestamp']
+        if 'from' in d:
+            sender = d['from']
+            return cls(entry, sender, None, timestamp)
+        elif 'recipient' in d:
+            sender = d.get('sender', '')
+            recipient = d['recipient']
+            return cls(entry, sender, recipient, timestamp)
+        else:
+            raise ValueError
+
+class Conversation:
+    def __init__ (self, recipient: str):
+        self.recipient = recipient
+        self.messages: list[Diary] = []
+    
+    def add_message(self, message: Diary):
+        self.messages.append(message)
+    
+    def get_message(self) -> list[Diary]:
+        return self.messages
+
     
 class Notebook:
     """Notebook is a class that can be used to manage a diary notebook."""
 
-    def __init__(self, username: str, password: str, bio: str):
+    def __init__(self, username: str, password: str, host: str, port: int, path: str):
         """Creates a new Notebook object. 
         
         Args:
             username (str): The username of the user.
-            password (str): The password of the user.
-            bio (str): The bio of the user.
+            password (str): The password of the user
         """
         self.username = username 
         self.password = password 
-        self.bio = bio 
+        self.host = host
+        self.port = port
+        self.path = path
         self._diaries = []
-        self.conversations = {}
-        #get messages for each user, seperately, use a dictionary with key's [contacts], values are list of messages. 
+        self.conversations = {} #recipient:str -> list[direct message objects]
     
 
     def add_diary(self, diary: Diary) -> None:
@@ -140,15 +184,29 @@ class Notebook:
         """
         p = Path(path)
 
-        if p.exists() and p.suffix == '.json':
-            try:
-                with open(p, 'w') as f:
-                    json.dump(self.__dict__, f, indent = 4)
-
-            except Exception as ex:
-                raise NotebookFileError("Error while attempting to process the notebook file.", ex)
-        else:
+        if p.suffix != '.json':
             raise NotebookFileError("Invalid notebook file path or type")
+
+    # Convert conversations dictionary into serializable form
+        conversations_serializable = {
+            recipient: [msg.to_dict() for msg in conv.get_message()]
+            for recipient, conv in self.conversations.items()
+        }
+
+        notebook_dict = {
+            'username': self.username,
+            'password': self.password,
+            'host': self.host,
+            'port': self.port,
+            '_diaries': [dict(diary) for diary in self._diaries],
+            'conversations': conversations_serializable
+        }
+
+        try:
+            with open(p, 'w', encoding='utf-8') as f:
+                json.dump(notebook_dict, f, indent=4)
+        except Exception as ex:
+            raise NotebookFileError("Error while attempting to process the notebook file.", ex)
 
     def load(self, path: str) -> None:
         """
@@ -165,34 +223,32 @@ class Notebook:
         """
         p = Path(path)
 
-        if p.exists() and p.suffix == '.json':
-            try:
-                with open(p, 'r') as f:
-                    obj = json.load(f)
-                    self.username = obj['username']
-                    self.password = obj['password']
-                    self.bio = obj['bio']
-                    for diary_obj in obj['_diaries']:
-                        diary = Diary(diary_obj['entry'], diary_obj['timestamp'])
-                        self._diaries.append(diary)
-                    # TODO: Iterates over DirectMessage Dictionary, have methods that retrieve conversation with specific user
-                    self.contacts = obj.get('contact', [])
-                    self.messages = obj.get('messages', [])
-
-            except Exception as ex:
-                raise IncorrectNotebookError(ex)
-        else:
+        if not (p.exists() and p.suffix == '.json'):
             raise NotebookFileError()
+
+        try:
+            with open(p, 'r', encoding='utf-8') as f:
+                obj = json.load(f)
+
+            self.username = obj['username']
+            self.password = obj['password']
+            self.host = obj['host']
+            self.port = obj['port']
+
+            self._diaries = [Diary(d['entry'], d['timestamp']) for d in obj.get('_diaries', [])]
+
+            self.conversations = {}
+            convs = obj.get('conversations', {})
+            for recipient, messages in convs.items():
+                conv = Conversation(recipient)
+                for m in messages:
+                    conv.add_message(DirectMessage.from_dict(m))
+                self.conversations[recipient] = conv
+
+        except Exception as ex:
+            raise IncorrectNotebookError(ex)
+
         
-    def add_message(self, message: DirectMessage):
-        self.messages.append(message)
-            
-    def get_all_messages(self):
-        return self.messages
-    
-    def add_contact(self, contact: str): #do i need to avoid duplicates, should i just use set()
-        if contact not in self.contacts:
-            self.contacts.add(contact)
-    
-    def get_all_contacts(self):
-        return self.contacts
+
+
+

@@ -1,0 +1,26 @@
+{
+    "username": "alice",
+    "password": "pass123",
+    "host": "localhost",
+    "port": 8000,
+    "_diaries": [
+        {
+            "entry": "My first diary entry",
+            "timestamp": 1747894990.03886
+        }
+    ],
+    "conversations": {
+        "bob": [
+            {
+                "entry": "Hello Bob!",
+                "timestamp": 1747894990.038861,
+                "sender": "alice"
+            },
+            {
+                "entry": "Hey Alice, how are you?",
+                "timestamp": 1747894990.038864,
+                "sender": "bob"
+            }
+        ]
+    }
+}

@@ -1,7 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, simpledialog
 from typing import Text
+from time import time
 from ds_messenger import DirectMessenger
+from notebook import Notebook, Diary, Conversation, DirectMessage, NotebookFileError, IncorrectNotebookError
 
 
 class Body(tk.Frame):
@@ -9,7 +11,7 @@ class Body(tk.Frame):
     # Initializes the Body frame, sets up contacts list, and draws UI elements.
         tk.Frame.__init__(self, root)
         self.root = root
-        self._contacts = [str]
+        self._contacts = []
         self._select_callback = recipient_selected_callback
         # After all initialization is complete,
         # call the _draw method to pack the widgets
@@ -50,7 +52,6 @@ class Body(tk.Frame):
 
     def set_text_entry(self, text:str):
     # Replaces the current text in the input area with the provided text.
-
         self.message_editor.delete(1.0, tk.END)
         self.message_editor.insert(1.0, text)
 
@@ -73,7 +74,7 @@ class Body(tk.Frame):
         scroll_frame = tk.Frame(master=entry_frame, bg="blue", width=10)
         scroll_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=False)
 
-        message_frame = tk.Frame(master=self, bg="yellow")
+        message_frame = tk.Frame(master=self, bg="yellow")  
         message_frame.pack(fill=tk.BOTH, side=tk.TOP, expand=False)
 
         self.message_editor = tk.Text(message_frame, width=0, height=5)
@@ -125,11 +126,13 @@ class Footer(tk.Frame):
 
 class NewContactDialog(tk.simpledialog.Dialog):
 # Dialog to collect server, username, and password from the user.
-    def __init__(self, root, title=None, user=None, pwd=None, server=None):
+    def __init__(self, root, title=None, user=None, password=None, server=None, host = 3001):
         self.root = root
         self.server = server
         self.user = user
-        self.pwd = pwd
+        self.password = password
+        self.path = ""
+        self.host = host
         super().__init__(root, title)
 
     def body(self, frame):
@@ -140,25 +143,37 @@ class NewContactDialog(tk.simpledialog.Dialog):
         self.server_entry.insert(tk.END, self.server)
         self.server_entry.pack()
 
+        self.host_label = tk.Label(frame, width=30, text="Host")
+        self.host_label.pack()
+        self.host_entry = tk.Entry(frame, width=30)
+        self.host_entry.insert(tk.END, self.host)
+        self.host_entry.pack()
+
         self.username_label = tk.Label(frame, width=30, text="Username")
         self.username_label.pack()
         self.username_entry = tk.Entry(frame, width=30)
         self.username_entry.insert(tk.END, self.user)
         self.username_entry.pack()
 
-        # You need to implement also the region for the user to enter
-        # the Password. The code is similar to the Username you see above
-        # but you will want to add self.password_entry['show'] = '*'
-        # such that when the user types, the only thing that appears are
-        # * symbols.
-        #self.password...
+        self.password_label = tk.Label(frame, width = 30, text = "Password")
+        self.password_label.pack()
+        self.password_entry = tk.Entry(frame, width = 30)
+        self.password_entry.insert(tk.END, self.password)
+        self.password_entry['show'] = '*'
+        self.password_entry.pack()
 
+        self.path_label = tk.Label(frame, width = 30, text = "Notebook Path")
+        self.path_label.pack()
+        self.path_entry = tk.Entry(frame, width = 30)
+        self.path_entry.insert(tk.END, self.path)
+        self.path_entry.pack()
 
     def apply(self):
     # Retrieves the user's inputs when they click OK.
         self.user = self.username_entry.get()
         self.pwd = self.password_entry.get()
         self.server = self.server_entry.get()
+        self.path = self.path_entry.get()
 
 
 class MainApp(tk.Frame):
@@ -167,20 +182,25 @@ class MainApp(tk.Frame):
     def __init__(self, root):
         tk.Frame.__init__(self, root)
         self.root = root
-        self.messages_by_contact = {}
         self.username = ''
         self.password = ''
         self.server = '127.0.0.1'
         self.recipient = ''
+        self.notebook = None
+        self.messenger = None
+        self.current_username = None
+        self.notebook_paths = {}
+        try:
+            self.dm = DirectMessenger(dsuserver = self.server, username = self.username, password = self.password)
+        except Exception as e:
+            pass #error handling here later
         # You must implement this! You must configure and
         # instantiate your DirectMessenger instance after this line.
         #self.direct_messenger = ... continue!
-        #self.dm = DirectMessenger(self.server, self.username, self.password)
         # After all initialization is complete,
         # call the _draw method to pack the widgets
         # into the root frame
         self._draw()
-        self.body.insert_contact("studentexw23") # adding one example student.
 
     def send_message(self):
     # Called when the user hits send
@@ -194,17 +214,22 @@ class MainApp(tk.Frame):
 
         if not message.strip():
             return
+        
         self.body.insert_user_message(f"You: {message}")
         self.body.set_text_entry("")
 
-        # Store the sent message locally
-        if recipient not in self.messages_by_contact:
-            self.messages_by_contact[recipient] = []
-        self.messages_by_contact[recipient].append(f"You: {message}")
-
         try:
-            response = self.dm.send(recipient, message)
-            print("Message sent:", response)
+            response = self.dm.send(message, recipient)
+
+            dm = DirectMessage(sender = self.username, recipient = recipient, message = message, timestamp = time.time())
+            self.notebook.add_message(dm)
+
+            if self.current_username is None or self.current_username not in self.notebook_paths:
+                print("Error: no user set or notebook path")
+                return
+            path = self.notebook_paths[self.current_username]
+            self.notebook.save(path)
+            
         except Exception as e:
             print(f"Send failed: {e}")
 
@@ -221,23 +246,49 @@ class MainApp(tk.Frame):
     def recipient_selected(self, recipient):
     # Stores the selected recipient from the contact list.
         self.recipient = recipient
-        self.body.entry_editor.delete('1.0', tk.END)
-        if recipient in self.messages_by_contact:
-            for msg in self.messages_by_contact[recipient]:
-                self.body.insert_contact_message(msg)
 
     def configure_server(self):
     # Opens the configuration dialog to set server, username, and password.
-        ud = NewContactDialog(self.root, "Configure Account",
+        ud = NewContactDialog(self.root, "Log In",
                               self.username, self.password, self.server)
         self.username = ud.user
         self.password = ud.pwd
         self.server = ud.server
+        notebook_path = ud.path
+
         # You must implement this!
         # You must configure and instantiate your
         # DirectMessenger instance after this line.
         if self.username and self.password and self.server:
-            self.dm  = DirectMessenger(dsuserver = self.server, username = self.username, password = self.password)
+            try:
+                self.dm  = DirectMessenger(dsuserver = self.server, username = self.username, password = self.password)
+                print('Login succesful')
+            except Exception as e:
+                print(f"Error connecting to server: {e}")
+                return
+        else:
+            print("Missing login info")
+
+        self.current_username = self.username
+        self.notebook_paths[self.username] = notebook_path
+        self.load_or_create_notebook(notebook_path)
+
+    def load_or_create_notebook(self, path):
+        try:
+            notebook =  Notebook(username = self.username, password=self.password, bio="")
+            notebook.load(path)
+            self.notebook = notebook
+    
+        except NotebookFileError:
+            print(f"Notebook file error: {e}")
+            self.notebook = Notebook(username = self.username, password=self.password, bio="")
+            self.notebook.save(path)
+        except IncorrectNotebookError:
+            print(f"Notebook is invalid")
+            self.notebook = Notebook(username=self.username, password=self.password, bio="")
+            self.notebook.save(path)
+        except Exception as e:
+            print(f"Unexpected error loading notebook {e}")
 
     def publish(self, message:str):
     # Publishes a message to the server (to be implemented).
@@ -246,19 +297,16 @@ class MainApp(tk.Frame):
 
     def check_new(self):
         if self.dm:
-            try:
-                new_messages = self.dm.retrieve_new()
-                for msg in new_messages:
-                    sender = msg['from']
-                    message = msg['message']
-                    if sender not in self.messages_by_contact:
-                        self.messages_by_contact[sender] = []
-                        self.body.insert_contact(sender)
-                    self.messages_by_contact[sender].append(message)
-                    if self.recipient == sender:
-                        self.body.insert_contact_message(message, sender)
-            except Exception as e:
-                print(f"Check new errors: {e}")
+            new_messages = self.dm.retrieve_new()
+            for msg in new_messages:
+                display_text = f"{msg.sender}: {msg.message}"
+                self.body.insert_contact_message(display_text)
+
+                self.notebook.add_message(msg)
+
+            path = self.notebook_paths[self.current_username]
+            self.notebook.save(path)            
+               
     # Checks for new incoming messages (to be implemented).
         # You must implement this!
 
@@ -280,7 +328,7 @@ class MainApp(tk.Frame):
         menu_bar.add_cascade(menu=settings_file, label='Settings')
         settings_file.add_command(label='Add Contact',
                                   command=self.add_contact)
-        settings_file.add_command(label='Configure DS Server',
+        settings_file.add_command(label='Log In',
                                   command=self.configure_server)
 
         # The Body and Footer classes must be initialized and
