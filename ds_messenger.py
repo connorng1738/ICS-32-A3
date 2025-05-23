@@ -21,7 +21,7 @@ class DirectMessage:
   
 class DirectMessenger:
   def __init__(self, dsuserver = None, port = 3001, username = None, password=None): 
-    self.port = port
+    self.port = int(port)
     self.dsuserver = dsuserver
     self.username = username
     self.password = password
