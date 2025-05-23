@@ -4,6 +4,7 @@ from typing import Text
 from time import time
 from ds_messenger import DirectMessenger
 from notebook import Notebook, Diary, Conversation, DirectMessage, NotebookFileError, IncorrectNotebookError
+from pathlib import Path
 
 
 class Body(tk.Frame):
@@ -125,14 +126,15 @@ class Footer(tk.Frame):
 
 
 class NewContactDialog(tk.simpledialog.Dialog):
-# Dialog to collect server, username, and password from the user.
-    def __init__(self, root, title=None, user=None, password=None, server=None, host = 3001):
+# Dialog to collect information from the server
+    def __init__(self, root, title=None, user=None, password=None, server=None, port= 3001):
         self.root = root
         self.server = server
         self.user = user
         self.password = password
         self.path = ""
-        self.host = host
+        self.port= port
+        self.ok = True
         super().__init__(root, title)
 
     def body(self, frame):
@@ -143,11 +145,11 @@ class NewContactDialog(tk.simpledialog.Dialog):
         self.server_entry.insert(tk.END, self.server)
         self.server_entry.pack()
 
-        self.host_label = tk.Label(frame, width=30, text="Host")
-        self.host_label.pack()
-        self.host_entry = tk.Entry(frame, width=30)
-        self.host_entry.insert(tk.END, self.host)
-        self.host_entry.pack()
+        self.port_label = tk.Label(frame, width=30, text="Port")
+        self.port_label.pack()
+        self.port_entry = tk.Entry(frame, width=30)
+        self.port_entry.insert(tk.END, self.port)
+        self.port_entry.pack()
 
         self.username_label = tk.Label(frame, width=30, text="Username")
         self.username_label.pack()
@@ -170,10 +172,14 @@ class NewContactDialog(tk.simpledialog.Dialog):
 
     def apply(self):
     # Retrieves the user's inputs when they click OK.
+        self.ok = True
         self.user = self.username_entry.get()
-        self.pwd = self.password_entry.get()
+        self.password = self.password_entry.get()
         self.server = self.server_entry.get()
+        self.port = self.port_entry.get()
         self.path = self.path_entry.get()
+
+        print(self.user, self.password, self.server, self.port, self.path)
 
 
 class MainApp(tk.Frame):
@@ -187,9 +193,9 @@ class MainApp(tk.Frame):
         self.server = '127.0.0.1'
         self.recipient = ''
         self.notebook = None
-        self.messenger = None
+        self.dm = None
         self.current_username = None
-        self.notebook_paths = {}
+        self.notebook_path = None
         try:
             self.dm = DirectMessenger(dsuserver = self.server, username = self.username, password = self.password)
         except Exception as e:
@@ -206,9 +212,8 @@ class MainApp(tk.Frame):
     # Called when the user hits send
     # You must implement this!
         message = self.body.get_text_entry()
-        recipient = self.recipient
 
-        if not recipient:
+        if not self.recipient:
             print("Error: No recipient selected.")
             return
 
@@ -219,9 +224,11 @@ class MainApp(tk.Frame):
         self.body.set_text_entry("")
 
         try:
-            response = self.dm.send(message, recipient)
+            if not self.publish(message):
+                print("Failed to publish")
+                return
 
-            dm = DirectMessage(sender = self.username, recipient = recipient, message = message, timestamp = time.time())
+            dm = DirectMessage(sender = self.username, recipient = self.recipient, message = message, timestamp = time.time())
             self.notebook.add_message(dm)
 
             if self.current_username is None or self.current_username not in self.notebook_paths:
@@ -250,11 +257,16 @@ class MainApp(tk.Frame):
     def configure_server(self):
     # Opens the configuration dialog to set server, username, and password.
         ud = NewContactDialog(self.root, "Log In",
-                              self.username, self.password, self.server)
+                              self.username, self.password, self.server, 3001)
+        if not ud.ok:
+            print("Login dialog canceled")
+            return
+        else:
+            print("Login dialog OK")
         self.username = ud.user
-        self.password = ud.pwd
+        self.password = ud.password
         self.server = ud.server
-        notebook_path = ud.path
+        self.notebook_path = ud.path
 
         # You must implement this!
         # You must configure and instantiate your
@@ -270,30 +282,37 @@ class MainApp(tk.Frame):
             print("Missing login info")
 
         self.current_username = self.username
-        self.notebook_paths[self.username] = notebook_path
-        self.load_or_create_notebook(notebook_path)
+        self.load_or_create_notebook(self.notebook_path)
 
-    def load_or_create_notebook(self, path):
+    def load_or_create_notebook(self, path): 
         try:
-            notebook =  Notebook(username = self.username, password=self.password, bio="")
-            notebook.load(path)
+            notebook =  Notebook(username = self.username, password=self.password, bio= None)
             self.notebook = notebook
+            p = Path(path)
+            if not p.exists() and p.suffix == '.json':
+                # Just create a new notebook
+                pass
+            else:
+                notebook.load(path)
+            if notebook.username != self.username or notebook.password != self.password:
+                print("Notebook login doesn't match")
+                return
     
-        except NotebookFileError:
+        except NotebookFileError as e:
             print(f"Notebook file error: {e}")
             self.notebook = Notebook(username = self.username, password=self.password, bio="")
             self.notebook.save(path)
         except IncorrectNotebookError:
-            print(f"Notebook is invalid")
-            self.notebook = Notebook(username=self.username, password=self.password, bio="")
-            self.notebook.save(path)
+            print(f"Notebook is incorrect")
         except Exception as e:
             print(f"Unexpected error loading notebook {e}")
 
     def publish(self, message:str):
     # Publishes a message to the server (to be implemented).
         # You must implement this!
-        pass
+        if self.recipient != '':
+            return self.dm.send(message=message, recipient=self.recipient)
+        return False
 
     def check_new(self):
         if self.dm:

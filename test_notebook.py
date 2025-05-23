@@ -10,9 +10,7 @@ def test_save_and_load():
     dm2 = DirectMessage("Hey Alice!", "bob", None, time.time()) 
     dm3 = DirectMessage("How is your day Bob!", "alice", "bob", time.time()) 
     
-    # Recieved message from Connor
-   
-
+    
     conv = Conversation("bob")
     conv.add_message(dm1)
     conv.add_message(dm2)
@@ -20,7 +18,7 @@ def test_save_and_load():
 
     nb1.conversations["bob"] = conv
 
-   
+    # Recieved message from Conno
     dm4 = DirectMessage("Hi connor", "alice", "connor", time.time())
     dm5 = DirectMessage("Hey Alice!", "connor", None, time.time())
 
