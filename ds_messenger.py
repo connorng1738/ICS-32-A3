@@ -102,14 +102,12 @@ class DirectMessenger:
 
     if parsed.type == 'ok' and parsed.messages:
       for msg in parsed.messages:
-        print('line 89')
         dm = DirectMessage(
             sender = msg.get('from',None),
             recipient = self.username,
             message = msg.get('message', None),
             timestamp = msg.get('timestamp', None)
         )
-
         messages.append(dm)
     return messages
 

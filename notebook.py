@@ -75,44 +75,44 @@ class Diary(dict):
     entry = property(get_entry, set_entry)
     timestamp = property(get_time, set_time)
 
-class DirectMessage(Diary):
-    def __init__(self, entry, sender, recipient, timestamp = 0):
-        super().__init__(entry, timestamp)
-        self.sender = sender
-        self.recipient = recipient
-        dict.__setitem__(self, 'sender', sender)
-        if recipient:
-            dict.__setitem__(self, 'recipient', recipient)
+# class DirectMessage(Diary):
+#     def __init__(self, entry, sender, recipient, timestamp = 0):
+#         super().__init__(entry, timestamp)
+#         self.sender = sender
+#         self.recipient = recipient
+#         dict.__setitem__(self, 'sender', sender)
+#         if recipient:
+#             dict.__setitem__(self, 'recipient', recipient)
     
-    def to_dict(self):
-        base = {
-            "message": self.entry,
-            "timestamp": self.timestamp,
-        }
-        if self.recipient:
-            base['recipient'] = self.recipient
-        else:
-            base['from'] = self.sender
-        return base
+#     def to_dict(self):
+#         base = {
+#             "message": self.entry,
+#             "timestamp": self.timestamp,
+#         }
+#         if self.recipient:
+#             base['recipient'] = self.recipient
+#         else:
+#             base['from'] = self.sender
+#         return base
 
-    @classmethod
-    def from_dict(cls, d):
-        entry = d['message']
-        timestamp = d['timestamp']
-        if 'from' in d:
-            sender = d['from']
-            return cls(entry, sender, None, timestamp)
-        elif 'recipient' in d:
-            sender = d.get('sender', '')
-            recipient = d['recipient']
-            return cls(entry, sender, recipient, timestamp)
-        else:
-            raise ValueError
+#     @classmethod
+#     def from_dict(cls, d):
+#         entry = d['message']
+#         timestamp = d['timestamp']
+#         if 'from' in d:
+#             sender = d['from']
+#             return cls(entry, sender, None, timestamp)
+#         elif 'recipient' in d:
+#             sender = d.get('sender', '')
+#             recipient = d['recipient']
+#             return cls(entry, sender, recipient, timestamp)
+#         else:
+#             raise ValueError
 
 class Conversation:
     def __init__ (self, recipient: str):
         self.recipient = recipient
-        self.messages: list[Diary] = []
+        self.messages =[]
     
     def add_message(self, message: Diary):
         self.messages.append(message)
@@ -189,7 +189,7 @@ class Notebook:
 
     # Convert conversations dictionary into serializable form
         conversations_serializable = {
-            recipient: [msg.to_dict() for msg in conv.get_message()]
+            recipient: conv.get_message()
             for recipient, conv in self.conversations.items()
         }
 
@@ -242,7 +242,7 @@ class Notebook:
             for recipient, messages in convs.items():
                 conv = Conversation(recipient)
                 for m in messages:
-                    conv.add_message(DirectMessage.from_dict(m))
+                    conv.add_message(m)
                 self.conversations[recipient] = conv
 
         except Exception as ex:
