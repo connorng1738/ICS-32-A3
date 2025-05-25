@@ -1,1 +1,23 @@
-{"user1": {"password": "pass1", "messages": []}}
+{
+    "username": "user1",
+    "password": "pass1",
+    "host": "127.0.0.1",
+    "port": "3001",
+    "_diaries": [],
+    "conversations": {
+        "user2": [
+            {
+                "entry": "hello user2!",
+                "timestamp": 1748195265.40705,
+                "sender": "user1",
+                "recipient": "user2"
+            },
+            {
+                "entry": "hey!",
+                "timestamp": 1748195280.254805,
+                "sender": "user1",
+                "recipient": "user2"
+            }
+        ]
+    }
+}

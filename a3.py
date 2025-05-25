@@ -1,10 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, simpledialog
 from typing import Text
-from ds_messenger import DirectMessenger, DirectMessage
+from ds_messenger import DirectMessenger
+from notebook import Notebook, Diary, Conversation, DirectMessage, NotebookFileError
 from pathlib import Path
 from time import time
-import json
 
 
 class Body(tk.Frame):
@@ -19,36 +19,23 @@ class Body(tk.Frame):
         self._draw()
 
     def node_select(self, event):
-        selected_items = self.posts_tree.selection()
-        if not selected_items:
-            return
-        selected_id = selected_items[0]  
-
-        entry = self.posts_tree.item(selected_id)["text"]
+        index = int(self.posts_tree.selection()[0])
+        entry = self._contacts[index]
         if self._select_callback is not None:
             self._select_callback(entry)
 
-
     def insert_contact(self, contact: str):
-        if not contact:
-            print("Skipping empty contact")
-            return
-        if contact in self._contacts:
-            print(f"Contact {contact} already exists")
-            return
         self._contacts.append(contact)
         id = len(self._contacts) - 1
         self._insert_contact_tree(id, contact)
 
     def _insert_contact_tree(self, id, contact: str):
-        display_name = contact
         if len(contact) > 25:
-            display_name = contact[:24] + "..."
-        self.posts_tree.insert('', 'end', iid=contact, text=display_name)
-
+            contact = contact[:24] + "..."
+        id = self.posts_tree.insert('', id, id, text=contact)
 
     def insert_user_message(self, message:str):
-        self.entry_editor.insert(tk.END, message + '\n', 'entry-right')
+        self.entry_editor.insert(1.0, message + '\n', 'entry-right')
 
     def insert_contact_message(self, message:str):
         self.entry_editor.insert(tk.END, message + '\n', 'entry-left')
@@ -164,7 +151,7 @@ class NewContactDialog(tk.simpledialog.Dialog):
         self.password_entry['show'] = '*'
         self.password_entry.pack()
 
-        self.path_label = tk.Label(frame, width = 30, text = "Path")
+        self.path_label = tk.Label(frame, width = 30, text = "Notebook Path")
         self.path_label.pack()
         self.path_entry = tk.Entry(frame, width = 30)
         self.path_entry.insert(tk.END, self.path)
@@ -186,21 +173,16 @@ class MainApp(tk.Frame):
         self.server = ''
         self.port = ''
         self.path = ''
+        self.dm = None
+        self.notebook = None
         self.recipient = ''
-        self.local = None
-        self.messages = []
-        self._draw()
-        self.configure_server()
-        # self.dm = None
-        # if self.dm:
-        #     self.dm = DirectMessenger(self.server, self.port, self.username, self.password)
-        #     print(self.dm)
+        
 
-        # if self.dm:
-        #     self.dm = DirectMessenger(self.server, self.port, self.username, self.password)
-        #     print('Directmessenger succesfully created!')
-        # else:
-        #     print('DirectMessenger does not exist!')
+        if self.dm:
+            self.dm = DirectMessenger(self.server, self.port, self.username, self.password)
+            print('Directmessenger succesfully created!')
+        else:
+            print('DirectMessenger does not exist!')
         # You must implement this! You must configure and
         # instantiate your DirectMessenger instance after this line.
         #self.direct_messenger = ... continue!
@@ -208,6 +190,9 @@ class MainApp(tk.Frame):
         # After all initialization is complete,
         # call the _draw method to pack the widgets
         # into the root frame
+        self._draw()
+
+        self.configure_server()
 
     def send_message(self):
         # You must implement this!
@@ -215,10 +200,21 @@ class MainApp(tk.Frame):
         recipient = self.recipient
         if not recipient:
             print("No recipient selected!")
-            return
-
+        
         self.publish(message)
-        self.body.insert_user_message(message) #edit this
+        
+        self.body.insert_user_message(message)
+        direct_message = DirectMessage(message, self.username, self.recipient, time())
+        if recipient in self.notebook.conversations:
+            self.notebook.conversations[recipient].add_message(direct_message)
+            print(type(self.notebook.conversations[recipient]))
+        else:
+            conv = Conversation(recipient)
+            conv.add_message(direct_message)
+            self.notebook.conversations[recipient] = conv
+        
+        self.notebook.save(self.notebook.path)
+        
         self.body.set_text_entry("")
 
     def add_contact(self):
@@ -230,13 +226,22 @@ class MainApp(tk.Frame):
         if contact:
             self.body.insert_contact(contact)
 
-
     def recipient_selected(self, recipient):
         self.recipient = recipient
 
         self.body.entry_editor.delete('1.0', tk.END)
-    
 
+        if recipient in self.notebook.conversations:
+            conversation = self.notebook.conversations[recipient]
+            print(conversation)
+            for message in conversation.get_message():
+                print(f"message data {message}")
+                print(message['sender'])
+                if message['sender'] == self.username:
+                    self.body.insert_user_message(message['entry'])
+                else:
+                    self.body.insert_contact_message(message['entry'])
+    
     def configure_server(self):
         ud = NewContactDialog(self.root, "Log In",
                               self.server, self.port, self.username, 
@@ -260,74 +265,44 @@ class MainApp(tk.Frame):
                 self.password)
             print("DM created!")
 
+            self.check_new()
+        
         except Exception as e:
             print(f"Failed to create DM, Error: {e}")
-        
-        path = Path(self.path)
-        
-        if not path.exists():
-            self.save(path)
-        else:
-            self.load(path)
 
-    def save(self, path: Path) -> None:
-        path = Path(path)
-
-        if path.suffix != '.json':
-            print("Ivalid file type - must be JSON")
-            return
-        
-        self.local = {
-            self.username: {
-                'password': self.password,
-                'messages': self.messages
-            }
-        }
-        with open(path, 'w', encoding = 'utf-8') as f:
-            json.dump(self.local, f)
-    
-    def load(self, path: Path):
         try:
-            with open(path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            user_data = data.get(self.username, None)
-            if user_data:
-                self.password = user_data.get('password', '')
-                self.messages = user_data.get('messages', [])
-
-                # Update your UI or state here accordingly, e.g.,
-                # show posts, update bio text, etc.
-
-                # If you want, you can load messages into your chat display:
-                for msg in self.messages:
-                    # Insert messages into the chat display (e.g., self.body.insert_contact_message)
-                    self.body.insert_contact_message(msg)
+            self.notebook = Notebook(username = self.username, #once the program is succesful include stuff about checking whether the password is correct or not.
+                                password = self.password,
+                                host = self.server,
+                                port = self.port,
+                                path = self.path)
+            if self.notebook:
+                path = Path(self.path)
+                if path.exists():
+                    self.notebook.load(self.notebook.path)
+                    print('Notebook loaded success!')
+                    for contact in self.notebook.conversations.keys():
+                        self.body.insert_contact(contact)
+                elif not path.exists():
+                    self.notebook.save(self.notebook.path)
+                    print('Notebook saved success!')
             else:
-                print(f"No data found for user {self.username}")
-
+                print('Notebook not saved or created yet!')
         except Exception as e:
-            print(f"Failed to load data: {e}")
+            print(f'Notebook creation exception: {e}')
 
     def create_direct_messenger(self):
         pass
+    
+    def save_to_notebook(self):
+        pass
 
-    def publish(self, message:str) -> bool:
+    def publish(self, message:str):
         # You must implement this!
         if self.dm and self.recipient:
             self.dm.send(message, self.recipient)
-            
-            msg_obj = {
-            "sender": self.username,
-            "recipient": self.recipient,
-            "message": message,
-            "timestamp": time()
-        }
-
-            self.messages.append(msg_obj)
-            return True
         else:
             print("No recipient or message")
-            return False
 
     def check_new(self):
         # You must implement this!
@@ -336,6 +311,8 @@ class MainApp(tk.Frame):
             for msg in new_messages:
                 display_text = f"{msg.sender}: {msg.message}"
                 self.body.insert_contact_message(display_text)
+        
+        self.root.after(2000, self.check_new)
     
     def _draw(self):
         # Build a menu and add it to the root frame.
