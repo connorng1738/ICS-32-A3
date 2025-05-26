@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, simpledialog
+from tkinter import ttk, filedialog, simpledialog, messagebox
 from typing import Text
 from ds_messenger import DirectMessenger
 from notebook import Notebook, Diary, Conversation, DirectMessage, NotebookFileError
@@ -13,9 +13,6 @@ class Body(tk.Frame):
         self.root = root
         self._contacts = []
         self._select_callback = recipient_selected_callback
-        # After all initialization is complete,
-        # call the _draw method to pack the widgets
-        # into the Body instance
         self._draw()
 
     def node_select(self, event):
@@ -35,7 +32,7 @@ class Body(tk.Frame):
         id = self.posts_tree.insert('', id, id, text=contact)
 
     def insert_user_message(self, message:str):
-        self.entry_editor.insert(1.0, message + '\n', 'entry-right')
+        self.entry_editor.insert(tk.END, message + '\n', 'entry-right')
 
     def insert_contact_message(self, message:str):
         self.entry_editor.insert(tk.END, message + '\n', 'entry-left')
@@ -73,8 +70,18 @@ class Body(tk.Frame):
                                  expand=True, padx=0, pady=0)
 
         self.entry_editor = tk.Text(editor_frame, width=0, height=5)
-        self.entry_editor.tag_configure('entry-right', justify='right')
-        self.entry_editor.tag_configure('entry-left', justify='left')
+        self.entry_editor.tag_configure('entry-right', justify='right',
+                                        foreground = 'white', 
+                                        background = '#0078D7',
+                                        lmargin1 = 50, rmargin = 10, 
+                                        spacing1=4, spacing3=4,
+                                        wrap = 'word')
+        self.entry_editor.tag_configure('entry-left', justify='left',
+                                        foreground = 'black', 
+                                        background = '#E5E5EA',
+                                        lmargin1 = 10, rmargin = 50,
+                                        spacing1=4, spacing3=4,
+                                        wrap = 'word')
         self.entry_editor.pack(fill=tk.BOTH, side=tk.LEFT,
                                expand=True, padx=0, pady=0)
 
@@ -83,7 +90,6 @@ class Body(tk.Frame):
         self.entry_editor['yscrollcommand'] = entry_editor_scrollbar.set
         entry_editor_scrollbar.pack(fill=tk.Y, side=tk.LEFT,
                                     expand=False, padx=0, pady=0)
-
 class Footer(tk.Frame):
     def __init__(self, root, send_callback=None, add_user_callback=None):
         tk.Frame.__init__(self, root)
@@ -178,11 +184,11 @@ class MainApp(tk.Frame):
         self.recipient = ''
         
 
-        if self.dm:
-            self.dm = DirectMessenger(self.server, self.port, self.username, self.password)
-            print('Directmessenger succesfully created!')
-        else:
-            print('DirectMessenger does not exist!')
+        # if self.dm:
+        #     self.dm = DirectMessenger(self.server, self.port, self.username, self.password)
+        #     print('Directmessenger succesfully created!')
+        # else:
+        #     print('DirectMessenger does not exist!')
         # You must implement this! You must configure and
         # instantiate your DirectMessenger instance after this line.
         #self.direct_messenger = ... continue!
@@ -191,20 +197,24 @@ class MainApp(tk.Frame):
         # call the _draw method to pack the widgets
         # into the root frame
         self._draw()
-
         self.configure_server()
 
     def send_message(self):
         # You must implement this!
         message = self.body.get_text_entry()
         recipient = self.recipient
+
         if not recipient:
             print("No recipient selected!")
         
-        self.publish(message)
+        success = self.publish(message)
+        if not success:
+            print("Message not sent - failed to reach server")
+            return
         
         self.body.insert_user_message(message)
         direct_message = DirectMessage(message, self.username, self.recipient, time())
+
         if recipient in self.notebook.conversations:
             self.notebook.conversations[recipient].add_message(direct_message)
             print(type(self.notebook.conversations[recipient]))
@@ -214,7 +224,6 @@ class MainApp(tk.Frame):
             self.notebook.conversations[recipient] = conv
         
         self.notebook.save(self.notebook.path)
-        
         self.body.set_text_entry("")
 
     def add_contact(self):
@@ -231,9 +240,8 @@ class MainApp(tk.Frame):
 
         self.body.entry_editor.delete('1.0', tk.END)
 
-        if recipient in self.notebook.conversations:
+        if recipient in self.notebook.conversations: 
             conversation = self.notebook.conversations[recipient]
-            print(conversation)
             for message in conversation.get_message():
                 print(f"message data {message}")
                 print(message['sender'])
@@ -251,22 +259,20 @@ class MainApp(tk.Frame):
         self.username = ud.user
         self.password = ud.password
         self.path = ud.path
-
-        print(self.username, self.password, self.server, self.port, self.path)
         # You must implement this!
           
         # You must configure and instantiate your
         # DirectMessenger instance after this line.
+
+        dm_created = False
         try:
             self.dm = DirectMessenger(
                 self.server,
                 int(self.port),
                 self.username,
                 self.password)
+            dm_created = True
             print("DM created!")
-
-            self.check_new()
-        
         except Exception as e:
             print(f"Failed to create DM, Error: {e}")
 
@@ -281,15 +287,38 @@ class MainApp(tk.Frame):
                 if path.exists():
                     self.notebook.load(self.notebook.path)
                     print('Notebook loaded success!')
+
                     for contact in self.notebook.conversations.keys():
-                        self.body.insert_contact(contact)
-                elif not path.exists():
+                        print('does this hit line 296')
+                        if contact != "null" and contact.strip() != '':
+                            print('contact inserted line 297')
+                            self.body.insert_contact(contact)
+
+                elif dm_created:
                     self.notebook.save(self.notebook.path)
                     print('Notebook saved success!')
-            else:
-                print('Notebook not saved or created yet!')
+                else:
+                    print('No existing notebook or server!')
+                if dm_created and self.dm:
+                    try:
+                        all_messages = self.dm.retrieve_all()
+                        for msg in all_messages:
+                            direct_message = DirectMessage(msg.message, msg.sender, self.username, msg.timestamp)
+                            if self.notebook.add_unique_message(msg.sender, direct_message):
+                                if msg.sender not in self.body._contacts:
+                                    self.body.insert_contact(msg.sender)
+                        self.notebook.save(self.notebook.path)
+                        print('Server sync complete!')
+                    except Exception as e:
+                        print(f'Server sync failed!')
+                else:
+                    print('Offline: no server conneciton!')
         except Exception as e:
             print(f'Notebook creation exception: {e}')
+            return
+        if dm_created:
+            self.check_new()
+
 
     def create_direct_messenger(self):
         pass
@@ -297,22 +326,41 @@ class MainApp(tk.Frame):
     def save_to_notebook(self):
         pass
 
-    def publish(self, message:str):
+    def publish(self, message:str) -> bool:
         # You must implement this!
+
         if self.dm and self.recipient:
-            self.dm.send(message, self.recipient)
+            try:
+                self.dm.send(message, self.recipient)
+                return True
+            except:
+                print("Failed to send message: {e}")
+                return False
         else:
             print("No recipient or message")
+            return False
 
     def check_new(self):
         # You must implement this!
         if self.dm:
             new_messages = self.dm.retrieve_new()
             for msg in new_messages:
-                display_text = f"{msg.sender}: {msg.message}"
-                self.body.insert_contact_message(display_text)
+                direct_message = DirectMessage(msg.message, msg.sender, self.username,  msg.timestamp)
+
+                if msg.sender in self.notebook.conversations:
+                    self.notebook.conversations[msg.sender].add_message(direct_message)
+                else:
+                    new_convo = Conversation(msg.sender)
+                    new_convo.add_message(direct_message)
+                    self.notebook.conversations[msg.sender] = new_convo
+                    self.body.insert_contact(msg.sender)
+                
+                if self.recipient == msg.sender:
+                    self.body.insert_contact_message(msg.message)
+            
+            self.notebook.save(self.notebook.path)
         
-        self.root.after(2000, self.check_new)
+        self.root.after(1000, self.check_new)
     
     def _draw(self):
         # Build a menu and add it to the root frame.
@@ -371,7 +419,7 @@ if __name__ == "__main__":
     # behavior of the window changes.
     main.update()
     main.minsize(main.winfo_width(), main.winfo_height())
-    id = main.after(2000, app.check_new)
+    id = main.after(1000, app.check_new)
     print(id)
     # And finally, start up the event loop for the program (you can find
     # more on this in lectures of week 9 and 10).

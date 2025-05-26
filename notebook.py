@@ -250,6 +250,20 @@ class Notebook:
 
         except Exception as ex:
             raise IncorrectNotebookError(ex)
+        
+    def add_unique_message(self, sender: str, message: DirectMessage) -> bool:
+        
+        if sender not in self.conversations:
+            self.conversations[sender] = Conversation(sender)
+        
+        existing = self.conversations[sender].get_message()
+        for msg in existing:
+            if msg['entry'] == message.message and msg['timestamp'] == message.timestamp:
+                return False
+            
+        
+        self.conversations[sender].add_message(message)
+        return True
 
         
 

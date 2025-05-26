@@ -7,16 +7,16 @@
     "conversations": {
         "user2": [
             {
-                "entry": "hello user2!",
-                "timestamp": 1748195265.40705,
+                "entry": "hey user2! how is it going?",
+                "timestamp": 1748241086.795826,
                 "sender": "user1",
                 "recipient": "user2"
             },
             {
-                "entry": "hey!",
-                "timestamp": 1748195280.254805,
-                "sender": "user1",
-                "recipient": "user2"
+                "entry": "i am doing good user1!, how about yourself?",
+                "timestamp": "1748241115.666609",
+                "sender": "user2",
+                "recipient": "user1"
             }
         ]
     }
