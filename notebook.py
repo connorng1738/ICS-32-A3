@@ -11,7 +11,6 @@ class NotebookFileError(Exception):
     is raised when attempting to load or save
     Notebook objects to file the system.
     """
-    pass
 
 
 class IncorrectNotebookError(Exception):
@@ -21,7 +20,6 @@ class IncorrectNotebookError(Exception):
     is raised when attempting to deserialize
     a notebook file to a Notebook object.
     """
-    pass
 
 
 class Diary(dict):
@@ -75,14 +73,14 @@ class Diary(dict):
         """
         return self._entry
 
-    def set_time(self, time: float) -> None:
+    def set_time(self, _time: float) -> None:
         """
         Set the timestamp for the diary entry.
 
         Arguments:
         time: the timestamp to set
         """
-        self._timestamp = time
+        self._timestamp = _time
         dict.__setitem__(self, 'timestamp', time)
 
     def get_time(self) -> float:
@@ -94,21 +92,14 @@ class Diary(dict):
         """
         return self._timestamp
 
-    """
-    The property method is used to
-    support get and set capability
-    for entry and  time values. When
-    the value for entry is changed, or set,
-    the timestamp field is  updated to the
-    current time.
-    """
     entry = property(get_entry, set_entry)
     timestamp = property(get_time, set_time)
 
 
 class DirectMessage(Diary):
     """
-    DirectMessage extends Diary to include sender and recipient information for messaging.
+    DirectMessage extends Diary to include sender and
+    recipient information for messaging.
     """
 
     def __init__(self,
@@ -117,7 +108,8 @@ class DirectMessage(Diary):
                  recipient: Optional[str],
                  timestamp: float = 0) -> None:
         """
-        Initialize a DirectMessage with entry, sender, recipient, and timestamp.
+        Initialize a DirectMessage with entry,
+        sender, recipient, and timestamp.
 
         Arguments:
         entry: the message content
@@ -137,7 +129,8 @@ class DirectMessage(Diary):
         Convert the DirectMessage to a dictionary representation.
 
         Returns:
-        dict: dictionary containing message data with appropriate keys based on recipient/sender
+        dict: dictionary containing message data with
+        appropriate keys based on recipient/sender
         """
         base = {
             "message": self.entry,
@@ -158,7 +151,7 @@ class DirectMessage(Diary):
         d: dictionary containing message data
 
         Returns:
-        DirectMessage: new DirectMessage instance created from the dictionary data
+        DirectMessage: new DirectMessage instance
         """
         entry = d['message']
         timestamp = d['timestamp']
@@ -377,9 +370,12 @@ class Notebook:
         except Exception as ex:
             raise IncorrectNotebookError(ex)
 
-    def add_unique_message(self, sender: str, message: DirectMessage) -> bool:
+    def add_unique_message(self,
+                           sender: str,
+                           message: DirectMessage) -> bool:
         """
-        Add a message to conversations if it doesn't already exist based on content and timestamp.
+        Add a message to conversations if it doesn't already
+        exist based on content and timestamp.
 
         Arguments:
         sender: the username of the message sender
@@ -397,12 +393,12 @@ class Notebook:
             print('msg existing loop')
             print('message.entry', message.entry)
             if msg['entry'] == message.entry:
-                
+
                 print('message does not match entry')
                 if msg['timestamp'] == message.timestamp:
                     print('message not added')
                     return False
-                
+
         self.conversations[sender].add_message(message)
         print('message added')
         return True
