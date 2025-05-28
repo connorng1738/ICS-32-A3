@@ -34,10 +34,13 @@ class Diary(dict):
     entry property that stores the diary message.
     """
 
-    def __init__(self, entry: Optional[str] = None, timestamp: float = 0) -> None:
+    def __init__(
+            self,
+            entry: Optional[str] = None,
+            timestamp: float = 0) -> None:
         """
         Initialize a Diary object with entry and timestamp.
-        
+
         Arguments:
         entry: the diary message content
         timestamp: the timestamp for the diary entry (defaults to 0)
@@ -52,7 +55,7 @@ class Diary(dict):
     def set_entry(self, entry: Optional[str]) -> None:
         """
         Set the diary entry content and update timestamp if not already set.
-        
+
         Arguments:
         entry: the diary message content to set
         """
@@ -66,7 +69,7 @@ class Diary(dict):
     def get_entry(self) -> Optional[str]:
         """
         Get the diary entry content.
-        
+
         Returns:
         str: the diary message content
         """
@@ -75,7 +78,7 @@ class Diary(dict):
     def set_time(self, time: float) -> None:
         """
         Set the timestamp for the diary entry.
-        
+
         Arguments:
         time: the timestamp to set
         """
@@ -85,7 +88,7 @@ class Diary(dict):
     def get_time(self) -> float:
         """
         Get the timestamp for the diary entry.
-        
+
         Returns:
         float: the timestamp of the diary entry
         """
@@ -107,7 +110,7 @@ class DirectMessage(Diary):
     """
     DirectMessage extends Diary to include sender and recipient information for messaging.
     """
-    
+
     def __init__(self,
                  entry: str,
                  sender: str,
@@ -115,7 +118,7 @@ class DirectMessage(Diary):
                  timestamp: float = 0) -> None:
         """
         Initialize a DirectMessage with entry, sender, recipient, and timestamp.
-        
+
         Arguments:
         entry: the message content
         sender: the username of the message sender
@@ -132,7 +135,7 @@ class DirectMessage(Diary):
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert the DirectMessage to a dictionary representation.
-        
+
         Returns:
         dict: dictionary containing message data with appropriate keys based on recipient/sender
         """
@@ -150,10 +153,10 @@ class DirectMessage(Diary):
     def from_dict(cls, d: Dict[str, Any]) -> 'DirectMessage':
         """
         Create a DirectMessage instance from a dictionary.
-        
+
         Arguments:
         d: dictionary containing message data
-        
+
         Returns:
         DirectMessage: new DirectMessage instance created from the dictionary data
         """
@@ -174,11 +177,11 @@ class Conversation:
     """
     Represents a conversation containing messages between users.
     """
-    
+
     def __init__(self, recipient: str) -> None:
         """
         Initialize a Conversation with a recipient.
-        
+
         Arguments:
         recipient: the username of the conversation recipient
         """
@@ -188,7 +191,7 @@ class Conversation:
     def add_message(self, message: Diary) -> None:
         """
         Add a message to the conversation.
-        
+
         Arguments:
         message: the Diary message object to add
         """
@@ -197,7 +200,7 @@ class Conversation:
     def get_message(self) -> List[Diary]:
         """
         Get all messages in the conversation.
-        
+
         Returns:
         list: list of Diary objects representing the messages
         """
@@ -206,7 +209,7 @@ class Conversation:
     def get_recipient(self) -> str:
         """
         Get the recipient of the conversation.
-        
+
         Returns:
         str: the username of the conversation recipient
         """
@@ -222,7 +225,6 @@ class Notebook:
                  username: str,
                  password: str,
                  host: str,
-                 port: int,
                  path: str) -> None:
         """
         Creates a new Notebook object.
@@ -231,13 +233,11 @@ class Notebook:
         username: The username of the user
         password: The password of the user
         host: The host server address
-        port: The port number for connection
         path: The file path for the notebook
         """
         self.username = username
         self.password = password
         self.host = host
-        self.port = port
         self.path = path
         self._diaries = []
         self.conversations = {}
@@ -251,7 +251,7 @@ class Notebook:
         it is possible for the list to not be sorted by the
         Diary.timestamp property. So take caution as to how you
         implement your add_diary code.
-        
+
         Arguments:
         diary: the Diary object to add to the notebook
         """
@@ -267,10 +267,10 @@ class Notebook:
         implement your own search operation on
         the diary returned from the get_diaries
         function to find the correct index.
-        
+
         Arguments:
         index: the index of the diary to delete
-        
+
         Returns:
         bool: True if successful, False if invalid index
         """
@@ -284,7 +284,7 @@ class Notebook:
         """
         Returns the list object containing all diaries
         that have been added to the Notebook object.
-        
+
         Returns:
         list: list of Diary objects in the notebook
         """
@@ -304,7 +304,7 @@ class Notebook:
 
         Arguments:
         path: the file path where to save the notebook
-        
+
         Raises NotebookFileError, IncorrectNotebookError
         """
         p = Path(path)
@@ -322,7 +322,6 @@ class Notebook:
             'username': self.username,
             'password': self.password,
             'host': self.host,
-            'port': self.port,
             '_diaries': [dict(diary) for diary in self._diaries],
             'conversations': conversations_serializable
         }
@@ -348,7 +347,7 @@ class Notebook:
 
         Arguments:
         path: the file path of the notebook to load
-        
+
         Raises NotebookFileError, IncorrectNotebookError
         """
         p = Path(path)
@@ -363,7 +362,6 @@ class Notebook:
             self.username = obj['username']
             self.password = obj['password']
             self.host = obj['host']
-            self.port = obj['port']
 
             self._diaries = [Diary(d['entry'], d['timestamp'])
                              for d in obj.get('_diaries', [])]
@@ -382,21 +380,29 @@ class Notebook:
     def add_unique_message(self, sender: str, message: DirectMessage) -> bool:
         """
         Add a message to conversations if it doesn't already exist based on content and timestamp.
-        
+
         Arguments:
         sender: the username of the message sender
         message: the DirectMessage object to add
-        
+
         Returns:
         bool: True if message was added (unique), False if duplicate found
         """
         if sender not in self.conversations:
             self.conversations[sender] = Conversation(sender)
-        existing = self.conversations[sender].get_message()
-        for msg in existing:
-            if msg['entry'] == message.message:
-                if msg['timestamp'] == message.timestamp:
-                    return False
 
+        existing = self.conversations[sender].get_message()
+        print('existing', existing)
+        for msg in existing:
+            print('msg existing loop')
+            print('message.entry', message.entry)
+            if msg['entry'] == message.entry:
+                
+                print('message does not match entry')
+                if msg['timestamp'] == message.timestamp:
+                    print('message not added')
+                    return False
+                
         self.conversations[sender].add_message(message)
+        print('message added')
         return True

@@ -1,8 +1,41 @@
 {
-    "username": "user1",
-    "password": "pass1",
-    "host": "127.0.0.1",
-    "port": "3001",
+    "username": "alice",
+    "password": "1234",
+    "host": "localhost",
+    "port": 8000,
     "_diaries": [],
-    "conversations": {}
+    "conversations": {
+        "bob": [
+            {
+                "entry": "Hi Bob!",
+                "timestamp": 1748400545.87445,
+                "sender": "alice",
+                "recipient": "bob"
+            },
+            {
+                "entry": "Hey Alice!",
+                "timestamp": 1748400545.874458,
+                "sender": "bob"
+            },
+            {
+                "entry": "How is your day Bob!",
+                "timestamp": 1748400545.87446,
+                "sender": "alice",
+                "recipient": "bob"
+            }
+        ],
+        "connor": [
+            {
+                "entry": "Hi connor",
+                "timestamp": 1748400545.874466,
+                "sender": "alice",
+                "recipient": "connor"
+            },
+            {
+                "entry": "Hey Alice!",
+                "timestamp": 1748400545.8744671,
+                "sender": "connor"
+            }
+        ]
+    }
 }

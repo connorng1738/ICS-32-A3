@@ -2,16 +2,32 @@
 # Connor Ng
 # ngce@uci.edu
 # ngce
+
+"""
+Direct messaging module for DSU server communication.
+
+This module provides classes for handling direct messages
+and messaging operations with a DSU server, including authentication,
+sending messages, and retrieving messages.
+"""
+
 import socket
 import time
-from ds_protocol import *
+from ds_protocol import (
+    authenticate_request,
+    direct_message_request,
+    fetch_request,
+    extract_json,
+    DSPResponse
+)
 
 
 class DirectMessage:
     """
-    Represents a direct message with sender, recipient, message content, and timestamp information.
+    Represents a direct message with sender, recipient,
+    message content, and timestamp information.
     """
-    
+
     def __init__(self,
                  recipient: str = None,
                  message: str = None,
@@ -19,7 +35,7 @@ class DirectMessage:
                  timestamp: float = None) -> None:
         """
         Initialize a DirectMessage object.
-        
+
         Arguments:
         recipient: the username of the message recipient
         message: the content of the message
@@ -34,32 +50,30 @@ class DirectMessage:
 
 class DirectMessenger:
     """
-    Handles direct messaging functionality including authentication, sending messages, 
-    and retrieving messages from a DSU server.
+    Handles direct messaging functionality including authentication,
+    sending messages, and retrieving messages from a DSU server.
     """
-    
+
     def __init__(self,
                  dsuserver: str = None,
-                 port: int = 3001,
                  username: str = None,
                  password: str = None) -> None:
         """
-        Initialize DirectMessenger and establish connection to DSU server with authentication.
-        
+        Initialize DirectMessenger and establish connection
+        to DSU server with authentication.
+
         Arguments:
         dsuserver: the hostname or IP address of the DSU server
-        port: the port number for the DSU server connection (default 3001)
         username: the username for authentication
         password: the password for authentication
         """
-        self.port = int(port)
         self.dsuserver = dsuserver
         self.username = username
         self.password = password
         self.timestamp = None
         self.token = None
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.dsuserver, self.port))
+        self.socket.connect((self.dsuserver, 3001))
 
         self.writer = self.socket.makefile('w')
         self.reader = self.socket.makefile('r')
@@ -77,16 +91,16 @@ class DirectMessenger:
         else:
             raise Exception("Could not authenticate")
 
-    def send(self, 
-             message: str, 
+    def send(self,
+             message: str,
              recipient: str) -> bool:
         """
         Send a direct message to a specified recipient.
-        
+
         Arguments:
         message: str, the content of the message to send
         recipient: str, the username of the message recipient
-        
+
         Returns:
         bool: True if message was sent successfully, False otherwise
         """
@@ -105,14 +119,13 @@ class DirectMessenger:
         parsed = extract_json(response)
         if parsed.type == 'ok':
             return True
-        else:
-            print(f"Failed to send: {parsed.message}")
-            return False
+        print(f"Failed to send: {parsed.message}")
+        return False
 
     def retrieve_new(self) -> list[DirectMessage]:
         """
         Retrieve all new (unread) messages from the server.
-        
+
         Returns:
         list: A list of DirectMessage objects containing new messages
         """
@@ -139,7 +152,7 @@ class DirectMessenger:
     def retrieve_all(self) -> list[DirectMessage]:
         """
         Retrieve all messages (both read and unread) from the server.
-        
+
         Returns:
         list: A list of DirectMessage objects containing all messages
         """
@@ -164,10 +177,11 @@ class DirectMessenger:
     def parse_message(self, fetch_request) -> DSPResponse:
         """
         Send a fetch request to the server and parse the response.
-        
+
         Arguments:
-        fetch_request: str, the formatted fetch request string to send to the server
-        
+        fetch_request: str, the formatted fetch request
+        string to send to the server
+
         Returns:
         DSPResponse: The parsed response object from the server
         """

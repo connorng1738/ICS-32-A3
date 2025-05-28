@@ -1,20 +1,34 @@
+
+"""
+Defines the GUI for the messaging system, leveraging the server
+and client connecition.
+"""
 import tkinter as tk
-from tkinter import ttk, simpledialog, messagebox
-from ds_messenger import DirectMessenger
-from notebook import *
 from pathlib import Path
 from time import time
-import traceback
+from tkinter import ttk, simpledialog, messagebox
+from ds_messenger import DirectMessenger
+from notebook import DirectMessage, Conversation, Notebook
 
 
 class Body(tk.Frame):
+    """
+    The Body class represents the main content area of the messaging app UI.
+
+    This frame includes the contact list and the message display area.
+    It handles the visual structure and user interactions related to
+    selecting contacts and viewing messages.
+    """
+
     def __init__(self, root, recipient_selected_callback=None):
         """
-        Initialize the Body frame which contains the contact list and message display.
-        
+        Initialize the Body frame which contains the contact
+        list and message display.
+
         Arguments:
         root: The parent tkinter widget
-        recipient_selected_callback: Callback function to handle contact selection
+        recipient_selected_callback: Callback function to handle
+        contact selection
         """
         tk.Frame.__init__(self, root)
         self.root = root
@@ -22,12 +36,9 @@ class Body(tk.Frame):
         self._select_callback = recipient_selected_callback
         self._draw()
 
-    def node_select(self, event):
+    def node_select(self):
         """
         Handle selection of a contact from the tree view.
-        
-        Arguments:
-        event: The tkinter event object from tree selection
         """
         selection = self.posts_tree.selection()
         if not selection:
@@ -59,7 +70,7 @@ class Body(tk.Frame):
     def insert_contact(self, contact: str):
         """
         Add a new contact to the contact list and tree view.
-        
+
         Arguments:
         contact: The contact name to add
         """
@@ -70,19 +81,19 @@ class Body(tk.Frame):
     def _insert_contact_tree(self, id, contact: str):
         """
         Insert a contact into the tree view widget.
-        
+
         Arguments:
         id: The index position for the contact
         contact: The contact name to display
         """
-        if not None and len(contact) > 25:
+        if len(contact) > 25:
             contact = contact[:24] + "..."
         id = self.posts_tree.insert('', id, id, text=contact)
 
     def insert_user_message(self, message: str):
         """
         Add a message from the current user to the message display.
-        
+
         Arguments:
         message: The message text to display
         """
@@ -91,7 +102,7 @@ class Body(tk.Frame):
     def insert_contact_message(self, message: str):
         """
         Add a message from a contact to the message display.
-        
+
         Arguments:
         message: The message text to display
         """
@@ -100,7 +111,7 @@ class Body(tk.Frame):
     def get_text_entry(self) -> str:
         """
         Get the current text from the message input field.
-        
+
         Returns:
         The text content from the message editor
         """
@@ -109,7 +120,7 @@ class Body(tk.Frame):
     def set_text_entry(self, text: str):
         """
         Set the text in the message input field.
-        
+
         Arguments:
         text: The text to set in the message editor
         """
@@ -168,10 +179,18 @@ class Body(tk.Frame):
 
 
 class Footer(tk.Frame):
+    """
+    The Footer class represents the bottom section of the messaging app UI.
+
+    This frame contains action buttons for sending messages and adding
+    new users. It handles user interactions related to composing messages
+    and managing contacts.
+    """
+
     def __init__(self, root, send_callback=None, add_user_callback=None):
         """
         Initialize the Footer frame which contains action buttons.
-        
+
         Arguments:
         root: The parent tkinter widget
         send_callback: Callback function for sending messages
@@ -211,30 +230,36 @@ class Footer(tk.Frame):
 
 
 class NewContactDialog(tk.simpledialog.Dialog):
+    """
+    The NewContactDialog class represents a pop-up dialog for entering server
+    connection details and user credentials.
+
+    This dialog allows the user to input or confirm information such as the
+    server address, username, password, and notebook file path before
+    connecting to the messaging service.
+    """
+
     def __init__(self,
                  root,
-                 title = None,
-                 server = None,
-                 port:int = 3001,
-                 user:str = None,
-                 password = None,
-                 path = None):
+                 title=None,
+                 server=None,
+                 user: str = None,
+                 password=None,
+                 path=None):
         """
         Initialize the login dialog for entering server connection details.
-        
+
         Arguments:
         root: The parent tkinter widget
         title: The dialog window title
         server: Default server address
-        port: Default port number
         user: Default username
         password: Default password
         path: Default notebook file path
         """
-        
+
         self.root = root
         self.server = server
-        self.port = port
         self.path = path
         self.user = user
         self.password = password
@@ -244,7 +269,7 @@ class NewContactDialog(tk.simpledialog.Dialog):
     def body(self, frame):
         """
         Create the input fields for the login dialog.
-        
+
         Arguments:
         frame: The frame to add the input fields to
         """
@@ -253,12 +278,6 @@ class NewContactDialog(tk.simpledialog.Dialog):
         self.server_entry = tk.Entry(frame, width=30)
         self.server_entry.insert(tk.END, self.server)
         self.server_entry.pack()
-
-        self.port_label = tk.Label(frame, width=30, text="Port")
-        self.port_label.pack()
-        self.port_entry = tk.Entry(frame, width=30)
-        self.port_entry.insert(tk.END, str(self.port))
-        self.port_entry.pack()
 
         self.username_label = tk.Label(frame, width=30, text="Username")
         self.username_label.pack()
@@ -284,17 +303,26 @@ class NewContactDialog(tk.simpledialog.Dialog):
         Save the entered values when the dialog is accepted.
         """
         self.server = self.server_entry.get()
-        self.port = self.port_entry.get()
         self.path = self.path_entry.get()
         self.user = self.username_entry.get()
         self.password = self.password_entry.get()
 
 
 class MainApp(tk.Frame):
+    """
+    The MainApp class represents the primary interface
+    for the messaging application.
+
+    This class manages the overall layout, user session,
+    message sending, ontact management, and communication with the server.
+    It integrates the Body and Footer UI components and handles interactions
+    between the user and the messaging backend.
+    """
+
     def __init__(self, root):
         """
         Initialize the main application window and components.
-        
+
         Arguments:
         root: The root tkinter window
         """
@@ -303,11 +331,11 @@ class MainApp(tk.Frame):
         self.username = ''
         self.password = ''
         self.server = ''
-        self.port = ''
         self.path = ''
         self.dm = None
         self.notebook = None
         self.recipient = ''
+        self.all_messages = None
         self._draw()
         self.configure_server()
 
@@ -363,7 +391,7 @@ class MainApp(tk.Frame):
     def recipient_selected(self, recipient: str):
         """
         Handle selection of a recipient and load their conversation history.
-        
+
         Arguments:
         recipient: The selected contact's name
         """
@@ -383,25 +411,28 @@ class MainApp(tk.Frame):
         """
         Configure server connection and initialize user session.
         """
-        self.prompt_login()
-        self.clear_gui()
+        dm_created = False
+        while dm_created is False:
+            print('False')
+            self.prompt_login()
+            self.clear_gui()
+            dm_created = self.create_dm()
 
-        dm_created = self.create_dm()
-        self.setup_notebook(dm_created)
+            if dm_created:
+                self.setup_notebook(dm_created)
 
-        if dm_created:
-            self.check_new()
+            if dm_created:
+                self.check_new()
 
     def prompt_login(self):
         """
         Display login dialog and collect user credentials.
         """
         ud = NewContactDialog(self.root, "Log In",
-                              self.server, self.port, self.username,
+                              self.server, self.username,
                               self.password, self.path)
 
         self.server = ud.server
-        self.port = ud.port
         self.username = ud.user
         self.password = ud.password
         self.path = ud.path
@@ -412,54 +443,61 @@ class MainApp(tk.Frame):
     def create_dm(self) -> bool:
         """
         Create DirectMessenger connection to the server.
-        
+
         Returns:
         bool: True if connection successful, False otherwise
         """
         try:
+            print(self.password)
             self.dm = DirectMessenger(
                 self.server,
-                int(self.port),
                 self.username,
                 self.password)
+
+            self.all_messages = self.dm.retrieve_all()
             return True
         except Exception as e:
-            messagebox.showerror("Error",
-                                 f"Failed to create DM, Error: {e}")
+            messagebox.showerror(
+                "Error",
+                f"Failed to create DM,"
+                "Please enter the correct information. "
+                "Error: {e}")
             return False
 
     def setup_notebook(self, dm_created: bool):
         """
         Initialize notebook and load existing conversations.
-        
+
         Arguments:
-        dm_created: Boolean indicating if DirectMessenger was successfully created
+        dm_created: Boolean indicating if
+        DirectMessenger was successfully created
         """
         try:
             self.notebook = Notebook(username=self.username,
                                      password=self.password,
                                      host=self.server,
-                                     port=self.port,
                                      path=self.path)
 
             if self.notebook:
-                path = Path(self.path)
-                if path.exists():
-                    self.notebook.load(self.notebook.path)
-                    for contact in self.notebook.conversations.keys():
-                        if contact and contact.strip().lower() != "null":
-                            self.body.insert_contact(contact)
-                elif dm_created:
-                    self.notebook.save(self.notebook.path)
-                else:
-                    messagebox.showerror(
-                        "Error", "No existing notebook or server!")
 
-                if dm_created and self.dm:
-                    self.sync_server_messages()
-                else:
-                    messagebox.showerror(
-                        "Error", "Offline: no server connection!")
+                path = Path(self.path)
+                if path.suffix == '.json':
+                    if path.exists():
+                        self.notebook.load(self.notebook.path)
+                        for contact in self.notebook.conversations.keys():
+                            if contact and contact.strip().lower() != "null":
+                                self.body.insert_contact(contact)
+                    elif dm_created:
+                        self.notebook.save(self.notebook.path)
+                    else:
+                        messagebox.showerror(
+                            "Error", "No existing notebook or server!")
+                    if dm_created and self.dm:
+                        self.sync_server_messages()
+                        print('460 sync server')
+                    else:
+                        messagebox.showerror(
+                            "Error", "Offline: no server connection!")
 
         except Exception as e:
             messagebox.showerror(
@@ -481,15 +519,15 @@ class MainApp(tk.Frame):
                         self.body.insert_contact(msg.sender)
             self.notebook.save(self.notebook.path)
         except Exception as e:
-            pass
+            messagebox.showerror(f"Unable to sync messages. Error: {e}")
 
     def publish(self, message: str) -> bool:
         """
         Send a message to the server.
-        
+
         Arguments:
         message: The message text to send
-        
+
         Returns:
         bool: True if message sent successfully, False otherwise
         """
@@ -498,8 +536,8 @@ class MainApp(tk.Frame):
         try:
             self.dm.send(message, self.recipient)
             return True
-        except Exception:
-            messagebox.showerror('Unable to publish')
+        except Exception as e:
+            messagebox.showerror(f'Unable to publish. Error {e}')
             return False
 
     def check_new(self):
