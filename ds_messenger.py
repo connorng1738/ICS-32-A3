@@ -109,14 +109,9 @@ class DirectMessenger:
 
         direct_message = direct_message_request(
             self.token, message, recipient, time.time())
-        print(f"Sending: {direct_message}")
-        self.writer.write(direct_message)
-        self.writer.flush()
+        parsed = self.parse_message(direct_message)
+        print(f"Server response: {parsed}")
 
-        response = self.reader.readline()
-        print(f"Server response: {response}")
-
-        parsed = extract_json(response)
         if parsed.type == 'ok':
             return True
         print(f"Failed to send: {parsed.message}")
@@ -145,8 +140,6 @@ class DirectMessenger:
                     timestamp=msg.get('timestamp', None)
                 )
                 messages.append(dm)
-        # elif parsed.type == 'error':
-            # pass# incldue condition for this
         return messages
 
     def retrieve_all(self) -> list[DirectMessage]:
@@ -174,7 +167,7 @@ class DirectMessenger:
                 messages.append(dm)
         return messages
 
-    def parse_message(self, fetch_request) -> DSPResponse:
+    def parse_message(self, request: str) -> DSPResponse:
         """
         Send a fetch request to the server and parse the response.
 
@@ -185,7 +178,7 @@ class DirectMessenger:
         Returns:
         DSPResponse: The parsed response object from the server
         """
-        self.writer.write(fetch_request + '\r\n')
+        self.writer.write(request + '\r\n')
 
         self.writer.flush()
         response = self.reader.readline()

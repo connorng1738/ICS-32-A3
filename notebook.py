@@ -1,3 +1,6 @@
+"""
+Data storage in order to store conversations between client and contacts.
+"""
 import json
 import time
 from pathlib import Path
@@ -19,6 +22,14 @@ class IncorrectNotebookError(Exception):
     that you should catch in your own code. It
     is raised when attempting to deserialize
     a notebook file to a Notebook object.
+    """
+
+
+class DirectMessageError(Exception):
+    """
+    DirectMessageError is a custom exception handler
+    that you should catch in your own code. It is raised
+    when attempting to create a DirectMessage object.
     """
 
 
@@ -120,9 +131,13 @@ class DirectMessage(Diary):
         super().__init__(entry, timestamp)
         self.sender = sender
         self.recipient = recipient
-        dict.__setitem__(self, 'sender', sender)
-        if recipient:
-            dict.__setitem__(self, 'recipient', recipient)
+
+        try:
+            dict.__setitem__(self, 'sender', sender)
+            if recipient:
+                dict.__setitem__(self, 'recipient', recipient)
+        except KeyError:
+            print('Unable to create DirectMessage')
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -158,12 +173,11 @@ class DirectMessage(Diary):
         if 'from' in d:
             sender = d['from']
             return cls(entry, sender, None, timestamp)
-        elif 'recipient' in d:
+        if 'recipient' in d:
             sender = d.get('sender', '')
             recipient = d['recipient']
             return cls(entry, sender, recipient, timestamp)
-        else:
-            raise ValueError
+        raise ValueError
 
 
 class Conversation:
@@ -324,7 +338,7 @@ class Notebook:
                 json.dump(notebook_dict, f, indent=4)
         except Exception as ex:
             raise NotebookFileError(
-                "Error while attempting to process the notebook file.", ex)
+                "Error while attempting to process the notebook file.") from ex
 
     def load(self, path: str) -> None:
         """
@@ -368,7 +382,7 @@ class Notebook:
                 self.conversations[recipient] = conv
 
         except Exception as ex:
-            raise IncorrectNotebookError(ex)
+            raise IncorrectNotebookError from ex
 
     def add_unique_message(self,
                            sender: str,
@@ -388,17 +402,10 @@ class Notebook:
             self.conversations[sender] = Conversation(sender)
 
         existing = self.conversations[sender].get_message()
-        print('existing', existing)
         for msg in existing:
-            print('msg existing loop')
-            print('message.entry', message.entry)
             if msg['entry'] == message.entry:
-
-                print('message does not match entry')
                 if msg['timestamp'] == message.timestamp:
-                    print('message not added')
                     return False
 
         self.conversations[sender].add_message(message)
-        print('message added')
         return True

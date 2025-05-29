@@ -1,0 +1,22 @@
+{
+    "username": "Bob",
+    "password": "Bob",
+    "host": "127.0.0.1",
+    "_diaries": [],
+    "conversations": {
+        "Alice": [
+            {
+                "entry": "hey bob",
+                "timestamp": "1748489928.364985",
+                "sender": "Alice",
+                "recipient": "Bob"
+            },
+            {
+                "entry": "hey Alice",
+                "timestamp": 1748489932.297295,
+                "sender": "Bob",
+                "recipient": "Alice"
+            }
+        ]
+    }
+}
